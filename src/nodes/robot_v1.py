@@ -40,6 +40,8 @@ class Robot():
         self.min_range                  = 0.18
         self._distancegoal              = 0.3
         self.__avoid_distance           = 1
+        self.max_angular_vel            = 1
+
         # Avoid countinf multiple crashes en the same step
         self.__crashed                  = False
         self.__crash_counter            = 0
