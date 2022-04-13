@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="ddrl_ge" type="network_v1" name="network_v1" output="screen" />
+</launch>
