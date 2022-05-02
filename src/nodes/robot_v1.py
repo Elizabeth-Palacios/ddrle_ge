@@ -11,6 +11,7 @@ from nav_msgs.msg import Odometry
 from std_srvs.srv import Empty
 from std_msgs.msg import String,  Float32MultiArray
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from pathfinding import pathfinding
 import time
 import os
 import sys
@@ -22,7 +23,7 @@ class Robot():
     Data robot
     """
 
-    def __init__(self, number_action, environment, min_action_time=0.45):
+    def __init__(self, number_action, environment, min_action_time=0.25):
         self.number_action              = number_action
         self.environment                = environment
         self.reset_proxy                = rospy.ServiceProxy('gazebo/reset_simulation', Empty)
@@ -60,35 +61,63 @@ class Robot():
         self.__angle_actions            = np.array([((self.number_action-4-action)* self.max_angular_vel*0.5)*self.__min_action_time for action in range(number_action-1)])
         self.__timer_list               = np.zeros(10)+min_action_time
         self.force_update               = False
+        # Initialize pathfinding
+        self.__pathfinding              = pathfinding(self.laser_angles/360.*2*np.pi)
+        self.old_goal                   = (np.nan,np.nan)
+        self.diff_time = 0.4
+        self.last_win= True
+        self.cn=0
+        self.stand=True
+    @property
+    def angle_action(self):
+        return np.array([((self.number_action-4-action)* self.max_angular_vel*0.5)*self.diff_time for action in range(self.number_action-1)])
+
 
     def evolve(self):
         """
           Make one step with the robot
         """
+
+
         # call the scan data method
-        scan = self.scan_data
+        scan = np.array(self.scan_data)
+
+        # Update the map, probably not necessary every step
+        if (self.step % 1 == 0) and (self.step!=0):
+            self.__pathfinding.update_map(self.position,self.environment.target_position.position,self.heading,scan)
+
+
+        # Construct a path
+        if (self.old_goal != self.environment.target_position.position) or (self.step % 5 == 0) and (self.__process == "follow_path"):
+            self.__pathfinding.construct_path(self.position,self.environment.target_position.position)
+            # print("Constructing path")
+
         # Finish the actual __process
         finished = False
-        # Choose the correct action depending on the current manoveur
-        if self.__process== "change_angle":
-            action,finished = self.rotate_to_angle()
-        elif self.__process== "driving_to_goal":
-            self.__desired_angle = 0
-            action,_  = self.rotate_to_angle()
-        elif self.__process== "driving_straight":
-            action = self.__forward_action
-        elif self.__process== "collision":
+        if self.__process=="collision":
             laser_angles = np.array(self.laser_angles)
             #laser_angles expressed in degrees
             if abs(laser_angles[np.argmin(scan)])>90:
                 action = self.__forward_action
             else:
                 action = self.__backward_action
-
             self.__coll_count +=1
+        elif self.__process == "follow_path":
+            self.__desired_angle = self.__pathfinding.follow_path(self.position,self.environment.target_position.position)
+            action,_  = self.rotate_to_angle()
+        elif self.__process== "driving_to_goal":
+            self.__desired_angle = 0
+            action,_  = self.rotate_to_angle()
+            # self.__process= "follow_path"
+        elif self.__process == "change_angle":
+            action,finished = self.rotate_to_angle()
 
-        # Change the process that is currently done
+        # For debugging
+        self.__pathfinding.monitor(self.position,self.environment.target_position.position)
+        # print(self.__process,action)
+        # Change the process
         self.change_process(finished)
+        self.old_goal = self.environment.target_position.position
         return action
 
     def reset(self):
@@ -107,45 +136,23 @@ class Robot():
         goal_dist = self.environment.get_current_Distance(self.robot_position_x,self.robot_position_y)
 
         if finished:
-            self.__process = "driving_straight"
-            self.__driving_straight_cnt =0
-        elif self.__process=="driving_to_goal":
+            self.__process = "follow_path"
+        elif self.__process=="follow_path":
             # Only drive to goal if the distance to the goal is okay and not blocked
-            if (free_dist<goal_dist) and (free_dist<self.__avoid_distance):
+            if (free_dist>goal_dist):
                 self.__desired_angle = self.__find_good_angle()
-                self.__process="change_angle"
-        elif self.__process=="driving_straight":
-            self.__driving_straight_cnt += 1
-            if self.__driving_straight_cnt >2:
-                # Drive to goal when there is enough space
-                if (free_dist>=goal_dist):
-                    self.__free_counter += 1
-                elif (goal_dist>free_dist>self.__avoid_distance):
-                    self.__process="driving_to_goal"
-                elif self.status_regions["front"]<=self.__avoid_distance/1.5:
-                    if min (self.scan_data[0:3])< min(self.scan_data[22:25]):
-                        self.__desired_angle = self.environment.fix_angle(self.heading+np.deg2rad(30))
-                    else:
-                        self.__desired_angle = self.environment.fix_angle(self.heading-np.deg2rad(30))
-
-                    self.__process="change_angle"
-                elif self.status_regions["left"]<=self.__avoid_distance/2.5:
-                    self.__desired_angle = self.environment.fix_angle(self.heading+np.deg2rad(30))
-                    self.__process="change_angle"
-                elif self.status_regions["right"]<=self.__avoid_distance/2.5:
-                    self.__desired_angle = self.environment.fix_angle(self.heading-np.deg2rad(30))
-                    self.__process="change_angle"
-                else:
-                    self.__free_counter = 0
-
-                if self.__free_counter>=4:
-                    self.__process="driving_to_goal"
-
+                self.__process="driving_to_goal"
+        elif self.__process=="driving_to_goal":
+            if self.status_regions["front"]<=self.__avoid_distance/1.5:
+                self.__process="follow_path"
         elif self.__process=="collision":
             if self.__coll_count >= 15:
-                self.__desired_angle = self.parallel_angle
-                self.__process="change_angle"
+                # self.__desired_angle = self.parallel_angle
+                self.__process="follow_path"
 
+    @property
+    def position(self):
+        return (self.robot_position_x, self.robot_position_y)
 
     @property
     def process(self):
@@ -186,19 +193,21 @@ class Robot():
           Rotate to a given angle
         """
         eta=0
-        aa=self.__angle_actions+eta*self.__angle_actions
+        # aa=self.__angle_actions+eta*self.__angle_actions
+        aa=self.angle_action+eta*self.angle_action
         diff_angles = self.heading-self.__desired_angle
         if diff_angles<0:
             mask   = ((diff_angles-aa)<0)
         elif diff_angles>=0:
             mask   = (diff_angles-aa)>=0
-        if abs(diff_angles) <np.rad2deg(30):
+        if abs(diff_angles) <np.deg2rad(10):
             helper = np.argmin(abs(diff_angles-aa[mask]))
             mask2=np.ones(len(aa),dtype=bool)
         else:
             mask2 =( np.arange(len(aa))==1 )| (np.arange(len(aa))==3)
             helper = np.argmin(abs(diff_angles-aa[mask&mask2]))
         action = np.arange(len(aa))[mask&mask2][helper]
+        # print("change_angle",action,self.heading-self.__desired_angle)
         return action, (action==2)
 
 
@@ -207,6 +216,11 @@ class Robot():
         Calculates the time needed to excecute the actions
         and executes them
         '''
+
+        self.diff_time = time.time()-self.__action_time
+        # if diff_time< self.__min_action_time:
+            # print("sleeping:",self.__min_action_time-diff_time)
+            # time.sleep(self.__min_action_time-diff_time)
         self.__action_time = time.time()
 
         max_angular_vel = 1.5
@@ -214,14 +228,40 @@ class Robot():
             ang_vel = ((self.number_action - 1)/2 - action) * max_angular_vel * 0.5
 
         vel_cmd = Twist()
+        # if  (self.old_goal != self.environment.target_position.position):
+            # vel_cmd.linear.x = 0
+
 
         if action == self.__backward_action:
             vel_cmd.linear.x = -0.15
             vel_cmd.angular.z = 0
-        else:
+
+        elif action == self.__forward_action:
             vel_cmd.linear.x = 0.15
+            vel_cmd.angular.z = 0
+            self.stand=False
+
+        else:
+            if not self.stand:
+                vel_cmd.linear.x = 0.15
+
+            else:
+                vel_cmd.linear.x = 0
             vel_cmd.angular.z = ang_vel
+
+        # if self.last_win:
+        #     vel_cmd.linear.x = 0
+            # vel_cmd.angular.z = ang_vel
         self.pub_cmd_vel.publish(vel_cmd)
+
+        # if self.environment.get_goalbox or self.environment.collision or self.cn<10:
+        #      self.last_win=True
+        #      self.cn+=1
+        #      print("turn")
+        # else:
+        #     self.last_win=False
+
+
 
         return
 

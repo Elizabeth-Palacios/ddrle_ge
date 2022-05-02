@@ -1,19 +1,27 @@
 #!/usr/bin/env python
 import rospy
 import os
+# os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 import json
 import numpy as np
 import random
 import time
 import pickle
+
+import tensorflow as tf
+
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from environment_v1 import Behaviour
 from collections import deque
 from std_msgs.msg import Float32MultiArray
 from robot_v1 import Robot
+# from tensorflow.keras.models import Sequential, load_model
+# from tensorflow.keras.optimizers import Adam, RMSprop
+# from tensorflow.keras.layers import Dense, Dropout, Activation
+# from tensorflow.keras.callbacks import History, TerminateOnNaN, EarlyStopping, ReduceLROnPlateau
 from keras.models import Sequential, load_model
-from keras.optimizers import Adam
+from keras.optimizers import Adam,RMSprop
 from keras.layers import Dense, Dropout, Activation
 from keras.callbacks import History, TerminateOnNaN, EarlyStopping, ReduceLROnPlateau
 
@@ -36,13 +44,21 @@ class ReinforcementNetwork():
         self.Pa                 = 0
         self.Pbest              = 0.01
         self.Pbest_max          = 0.95
-        self.increase_factor    = 0.97
+        self.increase_factor    = 0.929#0.975
         self.size_layer_1       = 20
         self.size_layer_2       = 20
         self.reward_max         = 0
         self.tau                = 0.1
         self.target_value       = 0
         self.dropout            = 0.2
+        # box
+        # self.lim_q_s            = 0.189
+        # self.lim_q_i            = 0.184
+        # corridor
+        self.lim_q_s            = 0.95
+        self.lim_q_i            = 0.5
+        self.lim_train          = 0.36
+
         self.memory_D           = deque(maxlen=1000000)
         self.memory_GT          = deque(maxlen=1000000)
         self.memory_EPS         = deque(maxlen=1000000)
@@ -75,8 +91,8 @@ class ReinforcementNetwork():
         q_model.add(Dropout(self.dropout))
         q_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         q_model.add(Activation(self.activation_output))
-        q_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
-        #q_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-06), metrics=['acc'])
+        # q_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
+        q_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-06), metrics=['acc'])
         return q_model
 
     def target_network(self):
@@ -89,8 +105,8 @@ class ReinforcementNetwork():
         target_model.add(Dropout(self.dropout))
         target_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         target_model.add(Activation(self.activation_output))
-        target_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
-        #q_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-06), metrics=['acc'])
+        # target_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
+        target_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-06), metrics=['acc'])
         return target_model
 
     def get_Qvalue(self, reward, next_target, done):
@@ -115,7 +131,7 @@ class ReinforcementNetwork():
         Pbes=0 purely random exploration, Pbest=1 pure exploitation.
         '''
         self.Pa = self.Pbest + ((1.0-self.Pbest)/self.action_size)
-        print(self.Pa)
+        # print(self.Pa)
         return self.Pa
 
     def get_action(self,state):
@@ -126,11 +142,11 @@ class ReinforcementNetwork():
         n2 = np.random.rand()
         n3 = np.random.rand()
 
-        if self.Pa <= 0.65:
+        if self.Pa <= self.lim_q_i:
             self.q_value = np.zeros(self.action_size)
             action = None
             evolve_rule = True
-        elif 0.9>self.Pa >0.65:
+        elif self.lim_q_s>self.Pa >self.lim_q_i:
             if n3 < self.Pa:
                 self.q_value = np.zeros(self.action_size)
                 action = None
@@ -172,7 +188,7 @@ class ReinforcementNetwork():
         '''
         self.memory_EPS.append((state,action, reward, next_state, done))
 
-    def winnin_state(self):
+    def winning_state(self):
         '''
         When the robot reaches the target, the temporary memory is copied into the
         main memory depending on the average reward.
@@ -185,10 +201,10 @@ class ReinforcementNetwork():
             self.memory_D.extend(self.memory_EPS)
             self.memory_D.extend(self.memory_EPS)
             self.memory_EPS.clear()
-            rospy.loginfo("Winnin State with reward_max !!!")
+            rospy.loginfo("Winning State with reward_max !!!")
         else:
             self.memory_EPS.clear()
-            rospy.loginfo("Normal Winin !!!")
+            rospy.loginfo("Normal Win !!!")
 
     def best_state(self):
         '''
@@ -209,7 +225,7 @@ class ReinforcementNetwork():
         '''
         batch_save   = []
         max_rew_save = []
-        for i in range(5):
+        for i in range(1):
             num_2 = random.randrange(0,len(self.memory_D)-int(self.batch_size/8.0))
             if len(self.memory_GT)>2:
                 mini_batch1 = deque(np.array(self.memory_D)[num_2:num_2+int(self.batch_size/8.0)-2])
@@ -244,7 +260,8 @@ class ReinforcementNetwork():
             rewards = mini_batch[i][2]
             next_states = mini_batch[i][3]
             dones = mini_batch[i][4]
-
+            # print(states)
+            # print(len(states))
             q_value = self.q_model.predict(states.reshape(1, len(states)))
             self.q_value = q_value
             next_q_value = self.q_model.predict(next_states.reshape(1, len(next_states)))
@@ -268,7 +285,7 @@ class ReinforcementNetwork():
                 X_batch = np.append(X_batch, np.array([next_states.copy()]), axis=0)
                 Y_batch = np.append(Y_batch, np.array([[rewards] * self.action_size]), axis=0)
         reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.2, patience=0, min_lr=0.0001)
-
+        # print(X_batch)
         result = self.q_model.fit(X_batch, Y_batch, batch_size=self.batch_size, epochs=1, verbose=0,callbacks=[reduce_lr])
         history_dict = result.history
         acc  = result.history['acc'][0]
@@ -281,7 +298,27 @@ class ReinforcementNetwork():
             outfile.write("{: .3e}".format(acc)+"   "+"{: .3e}".format(loss)+ "   "+"{: .3e}".format(lr) +"   "+"\n")
 
 if __name__ == '__main__':
+        # gpu =tf.config.list_physical_devices('GPU')
+        # if gpu:
+        #     tf.config.set_visible_devices(gpu[0],'GPU')
+    #
+    # tf.compat.v1.disable_eager_execution()
+    #
+    # gpus = tf.config.experimental.list_physical_devices('GPU')
+    # for device in gpus:
+    #     tf.config.experimental.set_memory_growth(device, True)
+    # # # cpus = tf.config.experimental.list_physical_devices('CPU')
+    # if gpus:
+    #   # Restrict TensorFlow to only use the first GPU
+    #   try:
+    #     tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
+    #     logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+    #     print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+    #   except RuntimeError as e:
+    #   # Visible devices must be set before GPUs have been initialized
+    #     print(e)
     rospy.init_node('network_v1')
+    # rate = rospy.Rate(10)
     state_size   = 28
     action_size  = 6
     episodes     = 19000
@@ -361,7 +398,7 @@ if __name__ == '__main__':
                 if env.best_time > 0.90:
                     agent.best_state()
                 else:
-                    agent.winnin_state()
+                    agent.winning_state()
 
             if  env.get_goalbox ==True or done==True:
                 m, s = divmod(int(time.time() - start_time), 60)
@@ -386,11 +423,12 @@ if __name__ == '__main__':
                     +"   "+"{:02d}".format(s)\
                     +"   "+"{: .3e}".format(agent.Pa)+"\n")
 
-                if agent.Pa <0.9:
+                if agent.Pa <agent.lim_q_s:
                     # Calculate the distance to the target from the agent's last position
                     env.get_goalbox = False
                     env.goal_x, env.goal_y = env.target_position.getPosition(True, delete=True)
                     env.get_Distance_goal(robot.robot_position_x,robot.robot_position_y)
+
                 else:
                     # Returns to the agent's origin position and calculates the distance to the target
                     env.get_goalbox = False
@@ -398,22 +436,28 @@ if __name__ == '__main__':
                     env.reset_gazebo()
                     env.goal_x, env.goal_y = env.target_position.getPosition(True, delete=True)
                     env.get_Distance_goal(robot.robot_position_x,robot.robot_position_y)
-
-            if agent.Pa >=0.18:
+                robot.stand=True
+            # BOX
+            # if agent.Pa >=0.25:
+            # CORRIDOR
+            # if agent.Pa >=0.180:
+            if agent.Pa >=agent.lim_train:
+            # if agent.Pa >=agent.lim_q_i-0.006:
                 # print(agent.Pa)
                 agent.train_model()
+                print("training")
             score += reward
             state = next_state
 
-            if e % 10 == 0:
+            if e % 5 == 0:
                 agent.q_model.save(agent.dirPath + str(e)+'_q_model' + '.h5')
                 agent.target_model.save(agent.dirPath + str(e) +'_target_model'+ '.h5')
                 with open(agent.dirPath + str(e) + '.json', 'w') as outfile:
                     json.dump(param_dictionary, outfile)
-            print("t" ,t)
+            # print("t" ,t)
             if t >= 500:
                 rospy.loginfo("Time out!!")
-
+                robot.stand=True
                 finish=True
                 done = True
 
