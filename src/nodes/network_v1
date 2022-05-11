@@ -25,61 +25,69 @@ from keras.optimizers import Adam,RMSprop
 from keras.layers import Dense, Dropout, Activation
 from keras.callbacks import History, TerminateOnNaN, EarlyStopping, ReduceLROnPlateau
 
-class ReinforcementNetwork():
+class ReinforcementNetwork(object):
     """
     Algorithm DDRLE-GE
     """
     def __init__(self,state_size,action_size,episodes):
+
         self.dirPath            = os.path.dirname(os.path.realpath(__file__))
-        self.dirPath            = self.dirPath.replace('ddrl_ge/src/nodes', 'ddrl_ge/src/save_model/environment_1')
+        self.dirPath            = self.dirPath.replace('ddrl_ge/src/nodes', 'ddrl_ge/src/save_model/environment_')
         self.state_size         = state_size
         self.action_size        = action_size
         self.episodes           = episodes
         self.episode_step       = 6000
         self.target_update      = 2000
         self.discount_factor    = 0.99
-        self.learning_rate      = 0.00025
+        self.learning_rate      = 0.001#0.00025
         self.batch_size         = 128
         self.train_start        = 128
         self.Pa                 = 0
         self.Pbest              = 0.01
-        self.Pbest_max          = 0.95
-        self.increase_factor    = 0.929#0.975
-        self.size_layer_1       = 20
-        self.size_layer_2       = 20
+        self.Pbest_max          = 0.99
+        self.increase_factor    = 0.99#0.975
+        self.size_layer_1       = 256#1000
+        self.size_layer_2       = 256#512 256
+        self.size_layer_3       = 256#64
         self.reward_max         = 0
         self.tau                = 0.1
         self.target_value       = 0
         self.dropout            = 0.2
-        # box
-        # self.lim_q_s            = 0.189
-        # self.lim_q_i            = 0.184
-        # corridor
         self.lim_q_s            = 0.95
-        self.lim_q_i            = 0.5
-        self.lim_train          = 0.36
-
+        self.lim_q_i            = 0.45
+        self.lim_train          = 0.19#0.25#0.36
         self.memory_D           = deque(maxlen=1000000)
         self.memory_GT          = deque(maxlen=1000000)
         self.memory_EPS         = deque(maxlen=1000000)
         self.load_model         = False
-        self.load_episode       = False
+        self.load_episode       = 0
         self.loss               = 'mse'
         self.activation_output  = 'linear'
         self.activation_layer   = 'relu'
         self.kernel_initializador = 'lecun_uniform'
         self.q_model              = self.q_network()
         self.target_model         = self.target_network()
-        self.update_target_network()
-
+        # self.update_target_network()
 
         if self.load_model:
             self.q_model.set_weights(load_model(self.dirPath+str(self.load_episode)+'_q_model'+".h5").get_weights())
-            self. target_model.set_weights(load_model(sel.dirPath+str(self.load_episode)+'_target_model'+".h5").get_weights())
-            with open(self.dirPath+str(self.load_episode)+'.json') as outfile:
-                param = json.load(outfile)
-                self.Pa = param.get('Pa')
-                self.Pbest = param.get('Pbest')
+            self.target_model.set_weights(load_model(self.dirPath+str(self.load_episode)+'_target_model'+".h5").get_weights())
+            self.Pa,self.Pbest= self.load_mode()
+        else:
+            self.q_model              = self.q_network()
+            self.target_model         = self.target_network()
+
+    def load_mode(self):
+        # self.q_model.set_weights(load_model(self.dirPath+str(self.load_episode)+'_target_model'+".h5").get_weights())
+        # self.target_model.set_weights(load_model(self.dirPath+str(self.load_episode)+'_target_model'+".h5").get_weights())
+        # q_model=load_model(self.dirPath+str(self.load_episode)+'_q_model'+".h5")
+        # target_model=load_model(self.dirPath+str(self.load_episode)+'_target_model'+".h5")
+        with open(self.dirPath+str(self.load_episode)+'.json') as outfile:
+            param = json.load(outfile)
+            Pa = param.get('Pa')
+            Pbest = param.get('Pbest')
+        return  Pa, Pbest
+        # return q_model,target_model, Pa, Pbest
 
     def q_network(self):
         '''
@@ -88,13 +96,13 @@ class ReinforcementNetwork():
         q_model = Sequential()
         q_model.add(Dense(self.size_layer_1, input_shape=(self.state_size,), activation= self.activation_layer, kernel_initializer = self.kernel_initializador))
         q_model.add(Dense(self.size_layer_2, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
+        q_model.add(Dense(self.size_layer_3, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
         q_model.add(Dropout(self.dropout))
         q_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         q_model.add(Activation(self.activation_output))
         # q_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
-        q_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-06), metrics=['acc'])
+        q_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9,  epsilon=1e-08, decay=0.0), metrics=['acc'])
         return q_model
-
     def target_network(self):
         '''
         In this network we evaluate the action of the q_network and predict the following value of Q(s',a)
@@ -102,11 +110,12 @@ class ReinforcementNetwork():
         target_model = Sequential()
         target_model.add(Dense(self.size_layer_1, input_shape=(self.state_size,), activation= self.activation_layer, kernel_initializer = self.kernel_initializador))
         target_model.add(Dense(self.size_layer_2, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
+        target_model.add(Dense(self.size_layer_3, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
         target_model.add(Dropout(self.dropout))
         target_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         target_model.add(Activation(self.activation_output))
         # target_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
-        target_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-06), metrics=['acc'])
+        target_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-08, decay=0.0), metrics=['acc'])
         return target_model
 
     def get_Qvalue(self, reward, next_target, done):
@@ -146,11 +155,15 @@ class ReinforcementNetwork():
             self.q_value = np.zeros(self.action_size)
             action = None
             evolve_rule = True
+            print("rules1")
+
         elif self.lim_q_s>self.Pa >self.lim_q_i:
             if n3 < self.Pa:
                 self.q_value = np.zeros(self.action_size)
                 action = None
                 evolve_rule = True
+                print("rules2")
+
             else:
                 self.q_value = self.q_model.predict(state.reshape(1,len(state)))
                 q_value = self.q_value[0][:-1]
@@ -160,11 +173,16 @@ class ReinforcementNetwork():
                 q_value = q_value/sum(q_value)
                 action = np.random.choice(np.arange(self.action_size-1)[mask],p=q_value)
                 evolve_rule = False
+                print("network-rules")
+
         else:
             if n2 <= self.Pa:
                 self.q_value = self.q_model.predict(state.reshape(1,len(state)))
                 action = np.argmax(self.q_value[0][:5])
                 evolve_rule = False
+                print("1 Best action")
+                # print("evolve_rul 1",evolve_rule)
+
             else:
                 self.q_value = self.q_model.predict(state.reshape(1, len(state)))
                 q_value = self.q_value[0][:-1]
@@ -174,6 +192,8 @@ class ReinforcementNetwork():
                 q_value = q_value/sum(q_value)
                 action = np.random.choice(np.arange(self.action_size-1)[mask],p=q_value)
                 evolve_rule = False
+                print("2 Best action")
+
         return action, evolve_rule
 
     def append_D(self, state, action, reward, next_state, done):
@@ -285,8 +305,9 @@ class ReinforcementNetwork():
                 X_batch = np.append(X_batch, np.array([next_states.copy()]), axis=0)
                 Y_batch = np.append(Y_batch, np.array([[rewards] * self.action_size]), axis=0)
         reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.2, patience=0, min_lr=0.0001)
+        earlystop_callback = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.0001,patience=50)
         # print(X_batch)
-        result = self.q_model.fit(X_batch, Y_batch, batch_size=self.batch_size, epochs=1, verbose=0,callbacks=[reduce_lr])
+        result = self.q_model.fit(X_batch, Y_batch, batch_size=self.batch_size, epochs=1, verbose=1,callbacks=[earlystop_callback])
         history_dict = result.history
         acc  = result.history['acc'][0]
         loss = result.history['loss'][0]
@@ -331,31 +352,40 @@ if __name__ == '__main__':
     agent.get_Pa()
 
     for e in range(agent.load_episode +1, episodes):
+
         ep += 1
         done = False
         finish = False
-
         robot.reset()
         env.reset_gazebo()
+        time.sleep(0.5)
         state_initial     = env.reset(robot.robot_position_x, robot.robot_position_y)
         state, _          = robot.state
         state             = np.asarray(state)
         score             = 0
         cont              = 0
-
+        robot.diff_time   = 0.20
+        # print("START",robot.process)
+        # robot.stand=True
         for t in range(agent.episode_step):
             robot.step = t
             action,evolve_rule = agent.get_action(state)
+            print(evolve_rule,robot.process)
+            # print(np.rad2deg(robot.heading))
             if evolve_rule or robot.process =="collision":
                 action = robot.evolve()
                 robot.perform_action(action)
                 next_state, reward, done = robot.next_values(action)
+                print("evolve step", action)
+
             else:
                 robot.perform_action(action)
+                print("action nn: ", action)
+                # print(robot.cmd_vel)
                 next_state, reward, done = robot.next_values(action)
+            # print("1",robot.process)
             agent.append_D(state, action, reward, next_state, done)
             agent.append_EPS(state, action, reward, next_state, done)
-
             if not os.path.exists(agent.dirPath+"_map"+'.txt'):
                 with open(agent.dirPath+"_map"+'.txt','a') as outfile:
                     outfile.write("state".rjust(150," ")+"   "+"robot_x".rjust(10," ")\
@@ -436,41 +466,41 @@ if __name__ == '__main__':
                     env.reset_gazebo()
                     env.goal_x, env.goal_y = env.target_position.getPosition(True, delete=True)
                     env.get_Distance_goal(robot.robot_position_x,robot.robot_position_y)
-                robot.stand=True
-            # BOX
-            # if agent.Pa >=0.25:
-            # CORRIDOR
-            # if agent.Pa >=0.180:
-            if agent.Pa >=agent.lim_train:
+                # robot.stand=True
+            # print("2",robot.process)
+
+            if (agent.Pa >=agent.lim_train) and (len(agent.memory_D) > 1*(agent.train_start)):
             # if agent.Pa >=agent.lim_q_i-0.006:
                 # print(agent.Pa)
                 agent.train_model()
                 print("training")
             score += reward
             state = next_state
-
             if e % 5 == 0:
-                agent.q_model.save(agent.dirPath + str(e)+'_q_model' + '.h5')
-                agent.target_model.save(agent.dirPath + str(e) +'_target_model'+ '.h5')
+                agent.q_model.save(agent.dirPath + str(e)+'_q_model' +'.h5')
+                agent.target_model.save(agent.dirPath + str(e) +'_target_model'+'.h5')
+                param_keys = ['Pa','Pbest']
+                param_values = [agent.Pa, agent.Pbest]
+                param_dictionary = dict(zip(param_keys, param_values))
                 with open(agent.dirPath + str(e) + '.json', 'w') as outfile:
                     json.dump(param_dictionary, outfile)
             # print("t" ,t)
             if t >= 500:
                 rospy.loginfo("Time out!!")
-                robot.stand=True
+                # robot.stand=True
                 finish=True
                 done = True
+            # print("3",robot.process)
 
             if done:
                 agent.update_target_network()
-                param_keys = ['Pa','Pbest']
-                param_values = [agent.Pa, agent.Pbest]
-                param_dictionary = dict(zip(param_keys, param_values))
+
                 if finish:
                     finish = False
                     break
 
                 if evolve_rule:
+                    # print("I am a popo")
                     robot.process="collision"
                     ep +=1
                     cont+=1
@@ -488,6 +518,9 @@ if __name__ == '__main__':
                         break
                 else:
                     break
+            # print("4",robot.process)
+
+
             global_step += 1
             if global_step % agent.target_update == 0:
                 agent.update_target_network()

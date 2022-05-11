@@ -18,7 +18,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from environment_v1 import Behaviour
 
-class Robot():
+class Robot(object):
     """
     Data robot
     """
@@ -64,10 +64,12 @@ class Robot():
         # Initialize pathfinding
         self.__pathfinding              = pathfinding(self.laser_angles/360.*2*np.pi)
         self.old_goal                   = (np.nan,np.nan)
+        self.vel_cmd                    = 0
         self.diff_time = 0.4
         self.last_win= True
         self.cn=0
-        self.stand=True
+        # self.stand=True
+        self.stand=False
     @property
     def angle_action(self):
         return np.array([((self.number_action-4-action)* self.max_angular_vel*0.5)*self.diff_time for action in range(self.number_action-1)])
@@ -78,6 +80,7 @@ class Robot():
           Make one step with the robot
         """
 
+        # print("i am in evolve")
 
         # call the scan data method
         scan = np.array(self.scan_data)
@@ -132,9 +135,12 @@ class Robot():
         """
           Change the optimal process to reach the goal
         """
+        # print("i am in change_process")
+
         free_dist = self.free_dist_goal
         goal_dist = self.environment.get_current_Distance(self.robot_position_x,self.robot_position_y)
-
+        # print("i am in change_process 2",self.__coll_count)
+        # print(finished,self.__coll_count)
         if finished:
             self.__process = "follow_path"
         elif self.__process=="follow_path":
@@ -149,6 +155,7 @@ class Robot():
             if self.__coll_count >= 15:
                 # self.__desired_angle = self.parallel_angle
                 self.__process="follow_path"
+        # print(self.__process)
 
     @property
     def position(self):
@@ -156,9 +163,12 @@ class Robot():
 
     @property
     def process(self):
+        # print("im getting called to read",self.__process)
         return self.__process
+
     @process.setter
     def process(self,value):
+        # print("im getting called to set",value)
         self.__process = value
 
     def __find_good_angle(self):
@@ -222,7 +232,7 @@ class Robot():
             # print("sleeping:",self.__min_action_time-diff_time)
             # time.sleep(self.__min_action_time-diff_time)
         self.__action_time = time.time()
-
+        # print("time: ",self.diff_time)
         max_angular_vel = 1.5
         if action != self.__backward_action:
             ang_vel = ((self.number_action - 1)/2 - action) * max_angular_vel * 0.5
@@ -247,11 +257,13 @@ class Robot():
 
             else:
                 vel_cmd.linear.x = 0
+            vel_cmd.linear.x = 0.07
             vel_cmd.angular.z = ang_vel
 
         # if self.last_win:
         #     vel_cmd.linear.x = 0
             # vel_cmd.angular.z = ang_vel
+            self.vel_cmd=vel_cmd
         self.pub_cmd_vel.publish(vel_cmd)
 
         # if self.environment.get_goalbox or self.environment.collision or self.cn<10:
@@ -320,12 +332,14 @@ class Robot():
         '''
         Get state of the robot
         '''
+
         current_distance= self.environment.get_current_Distance(self.robot_position_x,self.robot_position_y)
         heading = self.heading
         scan_data = self.scan_data
         done=False
+        # print("i am in state",self.__crash_counter,self.__process,self.__crashed)
         if ((self.min_range >= min(scan_data) > 0) and (not self.__crashed)) \
-            or ((self.min_range >= min(scan_data) > 0) and (self.__crash_counter>5)) :
+            or ((self.min_range >= min(scan_data) > 0) and (self.__crash_counter>5))  :
             done = True
             self.__crashed = True
             self.__crash_counter = 0
@@ -338,6 +352,7 @@ class Robot():
 
         wall_dist = min(self.scan_data)
         obstacle_angle = np.argmin(self.scan_data)
+        # print("i am in state",self.__crash_counter,self.__process,self.__crashed)
 
         return scan_data + [heading, current_distance,wall_dist,obstacle_angle], done
 

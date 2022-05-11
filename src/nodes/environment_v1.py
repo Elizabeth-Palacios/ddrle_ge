@@ -17,7 +17,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from target_v1 import Target
 
-class Behaviour():
+class Behaviour(object):
     def __init__(self):
         self.pub_cmd_vel         = rospy.Publisher('cmd_vel', Twist, queue_size=5)
         self.reset_proxy         = rospy.ServiceProxy('gazebo/reset_simulation', Empty)
