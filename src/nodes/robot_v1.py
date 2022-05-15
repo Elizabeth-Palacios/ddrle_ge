@@ -257,7 +257,7 @@ class Robot(object):
 
             else:
                 vel_cmd.linear.x = 0
-            vel_cmd.linear.x = 0.07
+            vel_cmd.linear.x = 0.12
             vel_cmd.angular.z = ang_vel
 
         # if self.last_win:

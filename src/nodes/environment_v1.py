@@ -103,7 +103,7 @@ class Behaviour(object):
         elif action ==5 :
             self.reward_current_angle = 0.0
         else:
-            self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))
+            self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*6
         if (0<current_distance < 2*self._distancegoal):
              self.last_heading = math.pi
         else:

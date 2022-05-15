@@ -39,23 +39,24 @@ class ReinforcementNetwork(object):
         self.episode_step       = 6000
         self.target_update      = 2000
         self.discount_factor    = 0.99
-        self.learning_rate      = 0.001#0.00025
-        self.batch_size         = 128
-        self.train_start        = 128
+        self.learning_rate      = 0.001 #0.00025
+        self.batch_size         = 64#128s
+        self.train_start        = 64#128
         self.Pa                 = 0
         self.Pbest              = 0.01
-        self.Pbest_max          = 0.99
-        self.increase_factor    = 0.99#0.975
-        self.size_layer_1       = 256#1000
-        self.size_layer_2       = 256#512 256
+        self.Pbest_max          = 0.95
+        self.increase_factor    = 0.98#0.975
+        self.size_layer_1       = 512#1000
+        self.size_layer_2       = 512#512 256
         self.size_layer_3       = 256#64
+        self.size_layer_4       = 20#64
         self.reward_max         = 0
         self.tau                = 0.1
         self.target_value       = 0
         self.dropout            = 0.2
         self.lim_q_s            = 0.95
-        self.lim_q_i            = 0.45
-        self.lim_train          = 0.19#0.25#0.36
+        self.lim_q_i            = 0.18
+        self.lim_train          = 0.18#0.25#0.36
         self.memory_D           = deque(maxlen=1000000)
         self.memory_GT          = deque(maxlen=1000000)
         self.memory_EPS         = deque(maxlen=1000000)
@@ -96,7 +97,8 @@ class ReinforcementNetwork(object):
         q_model = Sequential()
         q_model.add(Dense(self.size_layer_1, input_shape=(self.state_size,), activation= self.activation_layer, kernel_initializer = self.kernel_initializador))
         q_model.add(Dense(self.size_layer_2, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
-        q_model.add(Dense(self.size_layer_3, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
+        # q_model.add(Dense(self.size_layer_3, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
+        # q_model.add(Dense(self.size_layer_4, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
         q_model.add(Dropout(self.dropout))
         q_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         q_model.add(Activation(self.activation_output))
@@ -110,7 +112,8 @@ class ReinforcementNetwork(object):
         target_model = Sequential()
         target_model.add(Dense(self.size_layer_1, input_shape=(self.state_size,), activation= self.activation_layer, kernel_initializer = self.kernel_initializador))
         target_model.add(Dense(self.size_layer_2, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
-        target_model.add(Dense(self.size_layer_3, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
+        # target_model.add(Dense(self.size_layer_3, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
+        # target_model.add(Dense(self.size_layer_4, activation= self.activation_layer, kernel_initializer=self.kernel_initializador))
         target_model.add(Dropout(self.dropout))
         target_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         target_model.add(Activation(self.activation_output))
@@ -165,15 +168,20 @@ class ReinforcementNetwork(object):
                 print("rules2")
 
             else:
+                # self.q_value = self.q_model.predict(state.reshape(1,len(state)))
+                # q_value = self.q_value[0][:-1]
+                # mask=~(np.arange(self.action_size -1)==np.argmax(q_value))
+                # q_value=q_value[mask]
+                # q_value= q_value-min(q_value)
+                # q_value = q_value/sum(q_value)
+                # action = np.random.choice(np.arange(self.action_size-1)[mask],p=q_value)
+                # evolve_rule = False
+                # print("network-rules")
+                #
                 self.q_value = self.q_model.predict(state.reshape(1,len(state)))
-                q_value = self.q_value[0][:-1]
-                mask=~(np.arange(self.action_size -1)==np.argmax(q_value))
-                q_value=q_value[mask]
-                q_value= q_value-min(q_value)
-                q_value = q_value/sum(q_value)
-                action = np.random.choice(np.arange(self.action_size-1)[mask],p=q_value)
+                action = np.argmax(self.q_value[0][:5])
                 evolve_rule = False
-                print("network-rules")
+                print("1 Best action-rule")
 
         else:
             if n2 <= self.Pa:
@@ -305,9 +313,9 @@ class ReinforcementNetwork(object):
                 X_batch = np.append(X_batch, np.array([next_states.copy()]), axis=0)
                 Y_batch = np.append(Y_batch, np.array([[rewards] * self.action_size]), axis=0)
         reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.2, patience=0, min_lr=0.0001)
-        earlystop_callback = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.0001,patience=50)
+        # earlystop_callback = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.0001,patience=50)
         # print(X_batch)
-        result = self.q_model.fit(X_batch, Y_batch, batch_size=self.batch_size, epochs=1, verbose=1,callbacks=[earlystop_callback])
+        result = self.q_model.fit(X_batch, Y_batch, batch_size=self.batch_size, epochs=1, verbose=0,callbacks=[reduce_lr])
         history_dict = result.history
         acc  = result.history['acc'][0]
         loss = result.history['loss'][0]
@@ -371,7 +379,13 @@ if __name__ == '__main__':
             robot.step = t
             action,evolve_rule = agent.get_action(state)
             print(evolve_rule,robot.process)
-            # print(np.rad2deg(robot.heading))
+            # print(np.rad2deg(robot.heading
+            if agent.Pa >agent.lim_train:
+                if robot.process =="collision":
+                    break
+                else:
+                    pass
+
             if evolve_rule or robot.process =="collision":
                 action = robot.evolve()
                 robot.perform_action(action)
@@ -384,6 +398,7 @@ if __name__ == '__main__':
                 # print(robot.cmd_vel)
                 next_state, reward, done = robot.next_values(action)
             # print("1",robot.process)
+            print(reward)
             agent.append_D(state, action, reward, next_state, done)
             agent.append_EPS(state, action, reward, next_state, done)
             if not os.path.exists(agent.dirPath+"_map"+'.txt'):
@@ -425,7 +440,7 @@ if __name__ == '__main__':
                 +"   "+"{:02d}".format(s) +"\n")
 
             if  env.get_goalbox ==True:
-                if env.best_time > 0.90:
+                if env.best_time > 0.85:
                     agent.best_state()
                 else:
                     agent.winning_state()
@@ -453,7 +468,7 @@ if __name__ == '__main__':
                     +"   "+"{:02d}".format(s)\
                     +"   "+"{: .3e}".format(agent.Pa)+"\n")
 
-                if agent.Pa <agent.lim_q_s:
+                if agent.Pa <agent.lim_train:
                     # Calculate the distance to the target from the agent's last position
                     env.get_goalbox = False
                     env.goal_x, env.goal_y = env.target_position.getPosition(True, delete=True)
@@ -469,7 +484,8 @@ if __name__ == '__main__':
                 # robot.stand=True
             # print("2",robot.process)
 
-            if (agent.Pa >=agent.lim_train) and (len(agent.memory_D) > 1*(agent.train_start)):
+            if  len(agent.memory_D) > (agent.train_start):
+            # if (agent.Pa >=agent.lim_train) and (len(agent.memory_D) > 1*(agent.train_start)):
             # if agent.Pa >=agent.lim_q_i-0.006:
                 # print(agent.Pa)
                 agent.train_model()
@@ -509,6 +525,7 @@ if __name__ == '__main__':
                         agent.Pbest /= agent.increase_factor
                     elif agent.Pbest > agent.Pbest_max:
                         agent.Pbest = agent.Pbest_max
+                        agent.Pa = agent.Pbest_max
                     else:
                         agent.Pbest = agent.Pbest
                     agent.get_Pa()
@@ -530,6 +547,7 @@ if __name__ == '__main__':
 
         elif agent.Pbest > agent.Pbest_max:
             agent.Pbest = agent.Pbest_max
+            agent.Pa = agent.Pbest_max
         else:
             agent.Pbest = agent.Pbest
         agent.get_Pa()
