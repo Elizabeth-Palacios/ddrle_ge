@@ -40,8 +40,8 @@ class ReinforcementNetwork(object):
         self.target_update      = 2000
         self.discount_factor    = 0.99
         self.learning_rate      = 0.001 #0.00025
-        self.batch_size         = 64#128s
-        self.train_start        = 64#128
+        self.batch_size         = 96#128s
+        self.train_start        = 96#128
         self.Pa                 = 0
         self.Pbest              = 0.01
         self.Pbest_max          = 0.95
@@ -161,7 +161,7 @@ class ReinforcementNetwork(object):
             print("rules1")
 
         elif self.lim_q_s>self.Pa >self.lim_q_i:
-            if n3 < self.Pa:
+            if n3 > self.Pa:
                 self.q_value = np.zeros(self.action_size)
                 action = None
                 evolve_rule = True
