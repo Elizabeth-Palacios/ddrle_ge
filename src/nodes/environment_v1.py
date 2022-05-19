@@ -77,6 +77,7 @@ class Behaviour(object):
     def set_reward(self, state, done, action):
         '''
         Calculate reward(distance-angle-wall-time)
+        scan_data + [heading, current_distance,wall_dist,obstacle_angle]
         '''
         heading             = state[-4]
         current_distance    = state[-3]
@@ -103,14 +104,18 @@ class Behaviour(object):
         elif action ==5 :
             self.reward_current_angle = 0.0
         else:
-            self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*6
+            if current_distance <= 2*self._distancegoal:
+                self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*1
+            else:
+                self.reward_current_angle = 0.0
+
         if (0<current_distance < 2*self._distancegoal):
              self.last_heading = math.pi
         else:
             self.last_heading = heading
 
         #Reward goal and best time
-        if 0<current_distance < self._distancegoal:
+        if (0<current_distance < self._distancegoal) and (-pi/2< heading <pi/2):
             # Calculate the goal_time
             self.initial_steps = (self._goal_distance_initial+0.7)/0.15
             #Calculate time used
@@ -132,11 +137,12 @@ class Behaviour(object):
         if action ==5 :
             distance_rate = 0
         else:
-            if abs(current_distance-self.goal_distance)>0.8*0.15:
-                distance_rate =0
-                self.reward_current_angle =0
-            else:
+            # if abs(current_distance-self.goal_distance)>0.8*0.15:
+            #     distance_rate =0
+            #     self.reward_current_angle =0
+            # else:
                 distance_rate = ((np.exp(-last_distance) - np.exp(-current_distance))/(np.exp(-self._goal_distance_initial)-1))*self._maximo_reward
+                # distance_rate = (last_distance-current_distance)*self._maximo_reward
         self.goal_distance = current_distance
         reward = distance_rate  + self.reward_current_angle +wall_reward
         #Reward collision

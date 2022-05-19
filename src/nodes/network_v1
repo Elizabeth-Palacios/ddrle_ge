@@ -39,7 +39,7 @@ class ReinforcementNetwork(object):
         self.episode_step       = 6000
         self.target_update      = 2000
         self.discount_factor    = 0.99
-        self.learning_rate      = 0.001 #0.00025
+        self.learning_rate      = 0.00035 #0.00025
         self.batch_size         = 96#128s
         self.train_start        = 96#128
         self.Pa                 = 0
@@ -55,11 +55,12 @@ class ReinforcementNetwork(object):
         self.target_value       = 0
         self.dropout            = 0.2
         self.lim_q_s            = 0.95
-        self.lim_q_i            = 0.18
-        self.lim_train          = 0.18#0.25#0.36
-        self.memory_D           = deque(maxlen=1000000)
-        self.memory_GT          = deque(maxlen=1000000)
-        self.memory_EPS         = deque(maxlen=1000000)
+        self.lim_q_i            = 0.25
+        self.start_or           = 0.186
+        self.lim_train          = 0.186#0.25#0.36
+        self.memory_D           = deque(maxlen=100000)
+        self.memory_GT          = deque(maxlen=100000)
+        self.memory_EPS         = deque(maxlen=100000)
         self.load_model         = False
         self.load_episode       = 0
         self.loss               = 'mse'
@@ -102,7 +103,7 @@ class ReinforcementNetwork(object):
         q_model.add(Dropout(self.dropout))
         q_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         q_model.add(Activation(self.activation_output))
-        # q_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
+        # q_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate), metrics=['acc'])
         q_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9,  epsilon=1e-08, decay=0.0), metrics=['acc'])
         return q_model
     def target_network(self):
@@ -117,7 +118,7 @@ class ReinforcementNetwork(object):
         target_model.add(Dropout(self.dropout))
         target_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         target_model.add(Activation(self.activation_output))
-        # target_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate,  beta_1=0.9, beta_2=0.999, epsilon=1e-08), metrics=['acc'])
+        # target_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate), metrics=['acc'])
         target_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-08, decay=0.0), metrics=['acc'])
         return target_model
 
@@ -380,7 +381,7 @@ if __name__ == '__main__':
             action,evolve_rule = agent.get_action(state)
             print(evolve_rule,robot.process)
             # print(np.rad2deg(robot.heading
-            if agent.Pa >agent.lim_train:
+            if agent.Pa >agent.start_or:
                 if robot.process =="collision":
                     break
                 else:
@@ -399,6 +400,12 @@ if __name__ == '__main__':
                 next_state, reward, done = robot.next_values(action)
             # print("1",robot.process)
             print(reward)
+            next_state[0:24]=next_state[0:24]/3.5
+            # next_state[24]=(next_state[24]+np.pi)/2*np.pi
+            next_state[25]= next_state[25]/env._goal_distance_initial
+            next_state[26]=next_state[26]/3.5
+            next_state[27]=next_state[27]/24.0
+
             agent.append_D(state, action, reward, next_state, done)
             agent.append_EPS(state, action, reward, next_state, done)
             if not os.path.exists(agent.dirPath+"_map"+'.txt'):
@@ -468,7 +475,8 @@ if __name__ == '__main__':
                     +"   "+"{:02d}".format(s)\
                     +"   "+"{: .3e}".format(agent.Pa)+"\n")
 
-                if agent.Pa <agent.lim_train:
+                if agent.Pa <agent.start_or:
+                # if agent.Pa <agent.lim_train:
                     # Calculate the distance to the target from the agent's last position
                     env.get_goalbox = False
                     env.goal_x, env.goal_y = env.target_position.getPosition(True, delete=True)

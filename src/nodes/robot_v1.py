@@ -252,11 +252,11 @@ class Robot(object):
             self.stand=False
 
         else:
-            if not self.stand:
-                vel_cmd.linear.x = 0.15
-
-            else:
-                vel_cmd.linear.x = 0
+            # if not self.stand:
+            #     vel_cmd.linear.x = 0.12
+            #
+            # else:
+            #     # vel_cmd.linear.x = 0
             vel_cmd.linear.x = 0.12
             vel_cmd.angular.z = ang_vel
 

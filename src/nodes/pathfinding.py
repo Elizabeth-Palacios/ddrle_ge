@@ -6,8 +6,8 @@ import sys
 
 
 class pathfinding(object):
-    def __init__(self,laser_angles,x_min=-13,x_max=13,y_min=-13,y_max=13,size_s=0.075,debug=False):
-    # def __init__(self,laser_angles,x_min=-4,x_max=4,y_min=-4,y_max=4,size_s=0.075,debug=False):
+    # def __init__(self,laser_angles,x_min=-13,x_max=13,y_min=-13,y_max=13,size_s=0.075,debug=True):
+    def __init__(self,laser_angles,x_min=-4,x_max=4,y_min=-4,y_max=4,size_s=0.07,debug=False):
         """
           Constructor
         """
@@ -29,6 +29,7 @@ class pathfinding(object):
             self.__scat_rob = plt.scatter(0,0,marker="*",color="r")
             self.__scat_tar = plt.scatter(0,0,marker="s",color="w")
             self.__scat_focus = plt.scatter(0,0,marker="d",color="g")
+
         pass
 
     def __init_map(self,x_min,x_max,y_min,y_max,size_s):
@@ -100,13 +101,13 @@ class pathfinding(object):
             tmp_map[:,:-i] = tmp_map[:,:-i]+tmp_map[:,i:]
         tmp_map[tmp_map>2] = 2
 
-        for i in range(1,3):
+        for i in range(1,5):
             tmp_map[target_position[0]-i,target_position[1]] = 0
             tmp_map[target_position[0]+i,target_position[1]] = 0
             tmp_map[target_position[0],target_position[1]-i] = 0
             tmp_map[target_position[0],target_position[1]+i] = 0
         tmp_map[robot_position[0],robot_position[1]] = 0
-
+        self.tmp_map=tmp_map
         path = np.array(self.__a_star(tmp_map.T,tuple(robot_position),tuple(target_position)))
         # if path == None:
         #     return
@@ -179,12 +180,12 @@ class pathfinding(object):
         """
         if self.__debug:
             try:
-                self.__debug_im.set_array(self.box)
+                self.__debug_im.set_array(self.tmp_map)
                 self.__scat_rob.set_offsets(np.array([robot_pos[1],robot_pos[0]]))
                 self.__scat_tar.set_offsets(np.array([target_pos[1],target_pos[0]]))
                 # self.construct_path(robot_pos,target_pos)
                 # print("sh",p.shape)
-                # plt.plot(self.path_cords[:,0],self.path_cords[:,1])
+                plt.plot(self.path_cords[:,0],self.path_cords[:,1])
                 plt.ion()
                 plt.show(block=False)
                 plt.pause(0.01)
