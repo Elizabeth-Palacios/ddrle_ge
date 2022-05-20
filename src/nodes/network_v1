@@ -39,7 +39,7 @@ class ReinforcementNetwork(object):
         self.episode_step       = 6000
         self.target_update      = 2000
         self.discount_factor    = 0.99
-        self.learning_rate      = 0.00035 #0.00025
+        self.learning_rate      = 0.00020 #0.00025
         self.batch_size         = 96#128s
         self.train_start        = 96#128
         self.Pa                 = 0
@@ -69,6 +69,7 @@ class ReinforcementNetwork(object):
         self.kernel_initializador = 'lecun_uniform'
         self.q_model              = self.q_network()
         self.target_model         = self.target_network()
+        self.tf_rewards = 0
         # self.update_target_network()
 
         if self.load_model:
@@ -104,8 +105,12 @@ class ReinforcementNetwork(object):
         q_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         q_model.add(Activation(self.activation_output))
         # q_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate), metrics=['acc'])
+        # self.tf_rewards=tf.placeholder(tf.float64,shape=[None])
+        # los=tf.reduce_sum(self.tf_rewards*self.loss)
+
         q_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9,  epsilon=1e-08, decay=0.0), metrics=['acc'])
         return q_model
+
     def target_network(self):
         '''
         In this network we evaluate the action of the q_network and predict the following value of Q(s',a)
@@ -119,6 +124,7 @@ class ReinforcementNetwork(object):
         target_model.add(Dense(self.action_size, kernel_initializer=self.kernel_initializador))
         target_model.add(Activation(self.activation_output))
         # target_model.compile(loss=self.loss, optimizer=Adam(lr=self.learning_rate), metrics=['acc'])
+        # los=tf.reduce_sum(self.tf_rewards*self.loss)
         target_model.compile(loss=self.loss, optimizer=RMSprop(lr=self.learning_rate, rho=0.9, epsilon=1e-08, decay=0.0), metrics=['acc'])
         return target_model
 
@@ -319,7 +325,7 @@ class ReinforcementNetwork(object):
         result = self.q_model.fit(X_batch, Y_batch, batch_size=self.batch_size, epochs=1, verbose=0,callbacks=[reduce_lr])
         history_dict = result.history
         acc  = result.history['acc'][0]
-        loss = result.history['loss'][0]
+        loss = (result.history['loss'][0])*self.tf_rewards
         lr =  result.history['lr'][0]
         if not os.path.exists(agent.dirPath +"loss_history"+'.txt'):
             with open(agent.dirPath +"loss_history"+'.txt', 'a') as outfile:
@@ -354,6 +360,7 @@ if __name__ == '__main__':
     episodes     = 19000
     ep           = 0
     global_step  = 0
+
     env          = Behaviour()
     robot        = Robot(action_size,env)
     agent        = ReinforcementNetwork(state_size, action_size,episodes)
@@ -399,6 +406,7 @@ if __name__ == '__main__':
                 # print(robot.cmd_vel)
                 next_state, reward, done = robot.next_values(action)
             # print("1",robot.process)
+            agent.tf_rewards=reward
             print(reward)
             next_state[0:24]=next_state[0:24]/3.5
             # next_state[24]=(next_state[24]+np.pi)/2*np.pi
