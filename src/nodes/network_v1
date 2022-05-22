@@ -45,7 +45,8 @@ class ReinforcementNetwork(object):
         self.Pa                 = 0
         self.Pbest              = 0.01
         self.Pbest_max          = 0.95
-        self.increase_factor    = 0.98#0.975
+        # self.increase_factor    = 0.98#0.975
+        self.increase_factor    = 0.97#70.975
         self.size_layer_1       = 512#1000
         self.size_layer_2       = 512#512 256
         self.size_layer_3       = 256#64
