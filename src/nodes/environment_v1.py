@@ -104,10 +104,10 @@ class Behaviour(object):
         elif action ==5 :
             self.reward_current_angle = 0.0
         else:
-            if current_distance <= 2*self._distancegoal:
+            # if current_distance <= 2*self._distancegoal:
                 self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*1
-            else:
-                self.reward_current_angle = 0.0
+            # else:
+            #     self.reward_current_angle = 0.0
 
         if (0<current_distance < 2*self._distancegoal):
              self.last_heading = math.pi
@@ -144,7 +144,9 @@ class Behaviour(object):
                 distance_rate = ((np.exp(-last_distance) - np.exp(-current_distance))/(np.exp(-self._goal_distance_initial)-1))*self._maximo_reward
                 # distance_rate = (last_distance-current_distance)*self._maximo_reward
         self.goal_distance = current_distance
+        print("reward_distance: ", last_distance, current_distance, distance_rate, "angle: ", self.last_heading, heading, self.reward_current_angle, "wall_reward: ", wall_reward)
         reward = distance_rate  + self.reward_current_angle +wall_reward
+
         #Reward collision
         if done:
             rospy.loginfo("Collision!!")
@@ -155,6 +157,7 @@ class Behaviour(object):
             rospy.loginfo("Goal!!")
             reward = 1000 +reward_bt
             self.pub_cmd_vel.publish(Twist())
+            print("regoal: ", reward, reward_bt)
         return reward
 
     def reset_gazebo(self):

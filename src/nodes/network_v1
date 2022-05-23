@@ -39,14 +39,14 @@ class ReinforcementNetwork(object):
         self.episode_step       = 6000
         self.target_update      = 2000
         self.discount_factor    = 0.99
-        self.learning_rate      = 0.00020 #0.00025
+        self.learning_rate      = 0.00030 #0.00025
         self.batch_size         = 96#128s
         self.train_start        = 96#128
         self.Pa                 = 0
         self.Pbest              = 0.01
         self.Pbest_max          = 0.95
         # self.increase_factor    = 0.98#0.975
-        self.increase_factor    = 0.97#70.975
+        self.increase_factor    = 0.97#70.975 env1 for paper
         self.size_layer_1       = 512#1000
         self.size_layer_2       = 512#512 256
         self.size_layer_3       = 256#64
@@ -399,7 +399,7 @@ if __name__ == '__main__':
                 action = robot.evolve()
                 robot.perform_action(action)
                 next_state, reward, done = robot.next_values(action)
-                print("evolve step", action)
+                # print("evolve step", action)
 
             else:
                 robot.perform_action(action)
@@ -408,7 +408,7 @@ if __name__ == '__main__':
                 next_state, reward, done = robot.next_values(action)
             # print("1",robot.process)
             agent.tf_rewards=reward
-            print(reward)
+            # print(reward)
             next_state[0:24]=next_state[0:24]/3.5
             # next_state[24]=(next_state[24]+np.pi)/2*np.pi
             next_state[25]= next_state[25]/env._goal_distance_initial

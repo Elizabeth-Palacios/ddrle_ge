@@ -6,8 +6,8 @@ import sys
 
 
 class pathfinding(object):
-    def __init__(self,laser_angles,x_min=-13,x_max=13,y_min=-13,y_max=13,size_s=0.07,debug=False):
-    # def __init__(self,laser_angles,x_min=-4,x_max=4,y_min=-4,y_max=4,size_s=0.07,debug=False):
+    # def __init__(self,laser_angles,x_min=-13,x_max=13,y_min=-13,y_max=13,size_s=0.07,debug=False):
+    def __init__(self,laser_angles,x_min=-4,x_max=4,y_min=-4,y_max=4,size_s=0.07,debug=False):
         """
           Constructor
         """
