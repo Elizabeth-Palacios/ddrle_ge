@@ -108,7 +108,7 @@ class Behaviour(object):
                 self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*1
             # else:
             #     self.reward_current_angle = 0.0
-
+        print("reward_angle: ", self.last_heading,heading,  np.degrees(heading),self.reward_current_angle)
         if (0<current_distance < 2*self._distancegoal):
              self.last_heading = math.pi
         else:
@@ -133,6 +133,7 @@ class Behaviour(object):
             self.get_goalbox = True
             self._cont_step = self.cont_step
             self.cont_step = 0
+            print("goal",self.initial_steps,t_steps,self.best_time,reward_bt)
 
         if action ==5 :
             distance_rate = 0
@@ -143,8 +144,11 @@ class Behaviour(object):
             # else:
                 distance_rate = ((np.exp(-last_distance) - np.exp(-current_distance))/(np.exp(-self._goal_distance_initial)-1))*self._maximo_reward
                 # distance_rate = (last_distance-current_distance)*self._maximo_reward
+        print("reward_distance: ",self._goal_distance_initial, last_distance, current_distance, distance_rate, "angle: ", heading, self.reward_current_angle, "wall_reward: ", wall_reward)
         self.goal_distance = current_distance
-        print("reward_distance: ", last_distance, current_distance, distance_rate, "angle: ", self.last_heading, heading, self.reward_current_angle, "wall_reward: ", wall_reward)
+        # print("reward_distance: ", last_distance, current_distance, distance_rate, "angle: ", self.last_heading, heading, self.reward_current_angle, "wall_reward: ", wall_reward)
+        # print("angle: ", self.last_heading, heading, np.degrees(heading),self.reward_current_angle)
+
         reward = distance_rate  + self.reward_current_angle +wall_reward
 
         #Reward collision

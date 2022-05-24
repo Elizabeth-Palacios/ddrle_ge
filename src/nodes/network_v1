@@ -40,8 +40,8 @@ class ReinforcementNetwork(object):
         self.target_update      = 2000
         self.discount_factor    = 0.99
         self.learning_rate      = 0.00030 #0.00025
-        self.batch_size         = 96#128s
-        self.train_start        = 96#128
+        self.batch_size         = 128#128s
+        self.train_start        = 128#128
         self.Pa                 = 0
         self.Pbest              = 0.01
         self.Pbest_max          = 0.95
@@ -399,7 +399,7 @@ if __name__ == '__main__':
                 action = robot.evolve()
                 robot.perform_action(action)
                 next_state, reward, done = robot.next_values(action)
-                # print("evolve step", action)
+                print("evolve step", action)
 
             else:
                 robot.perform_action(action)
