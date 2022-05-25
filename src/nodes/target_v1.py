@@ -18,11 +18,11 @@ class Target(object):
         self.model = self.f.read()
         self.target_position = Pose()
         # FOR BOX
-        self.init_goal_x = -0.5
-        self.init_goal_y = 0.5
-        # FOR CORRIDOR
-        # self.init_goal_x = 0.5
+        # self.init_goal_x = -0.5
         # self.init_goal_y = 0.5
+        # FOR CORRIDOR
+        self.init_goal_x = 0.5
+        self.init_goal_y = 0.5
         self.target_position.position.x = self.init_goal_x
         self.target_position.position.y = self.init_goal_y
         self.modelName = 'goal'
@@ -54,12 +54,12 @@ class Target(object):
         while position_check:
 
             #goal for box
-            goal_x_list = [-1, 1.8, 0.6, 1.9,  0.7, 0.2, -1.3, -1, -1.9,  0.5,   2, 0.5, 0, -0.1, -2,  -0.5]
-            goal_y_list = [-2,-1.8, 0,  -0.5, -1.9, 1.5, -0.9,  1,  1.1, -1.5, 1.5, 1.8, -1, 1.6, -0.8, 0.5]
+            # goal_x_list = [-1, 1.8, 0.6, 1.9,  0.7, 0.2, -1.3, -1, -1.9,  0.5,   2, 0.5, 0, -0.1, -2,  -0.5]
+            # goal_y_list = [-2,-1.8, 0,  -0.5, -1.9, 1.5, -0.9,  1,  1.1, -1.5, 1.5, 1.8, -1, 1.6, -0.8, 0.5]
 
             # goal for corridor
-            # goal_x_list = [0.5,1,    2  ,3 , 4  ,7 , 9  ,  12,   4.5, 7.5,-1,-4, -1,-5,  -7.5,-9,-10,-11,9.5]
-            # goal_y_list = [0.5,1,   0.5, 1,-0.8, 0.8,  -1.5,0,  -1.5,-1.5,-1,-0.5,1,-1.2,1,   -1, 1,  0, 1.5]
+            goal_x_list = [0.5,1,    2  ,3 , 4  ,7 , 9  ,  12,   4.5, 7.5,-1,-4, -1,-5,  -7.5,-9,-10,-11,9.5]
+            goal_y_list = [0.5,1,   0.5, 1,-0.8, 0.8,  -1.5,0,  -1.5,-1.5,-1,-0.5,1,-1.2,1,   -1, 1,  0, 1.5]
 
             self.index = np.random.randint(0, len(goal_y_list), 1)[0]
 

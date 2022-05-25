@@ -99,9 +99,9 @@ class Behaviour(object):
 
 
         # Reward angle
-        if action ==2 :
-            self.reward_current_angle = 0.0
-        elif action ==5 :
+        # if action ==2 :
+        #     self.reward_current_angle = 0.0
+        if action ==5 :
             self.reward_current_angle = 0.0
         else:
             # if current_distance <= 2*self._distancegoal:
@@ -109,10 +109,11 @@ class Behaviour(object):
             # else:
             #     self.reward_current_angle = 0.0
         print("reward_angle: ", self.last_heading,heading,  np.degrees(heading),self.reward_current_angle)
-        if (0<current_distance < 2*self._distancegoal):
-             self.last_heading = math.pi
-        else:
-            self.last_heading = heading
+        # if (0<current_distance < 2*self._distancegoal):
+        #      # self.last_heading = math.pi
+        #      self.last_heading = heading
+        # else:
+        self.last_heading = heading
 
         #Reward goal and best time
         if (0<current_distance < self._distancegoal) and (-pi/2< heading <pi/2):
