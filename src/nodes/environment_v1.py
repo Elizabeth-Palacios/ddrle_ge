@@ -109,10 +109,10 @@ class Behaviour(object):
             # else:
             #     self.reward_current_angle = 0.0
 
-        if (0<current_distance < 2*self._distancegoal):
-             self.last_heading = math.pi
-        else:
-            self.last_heading = heading
+        # if (0<current_distance < 2*self._distancegoal):
+        #      self.last_heading = math.pi
+        # else:
+        #     self.last_heading = heading
 
         #Reward goal and best time
         if (0<current_distance < self._distancegoal) and (-pi/2< heading <pi/2):
