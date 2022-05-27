@@ -48,7 +48,7 @@ class ReinforcementNetwork(object):
         # self.increase_factor    = 0.98#0.975
         self.increase_factor    = 0.97#70.975 env1 for paper
         self.size_layer_1       = 512#1000
-        self.size_layer_2       = 512#512 256
+        self.size_layer_2       = 256#512 256
         self.size_layer_3       = 256#64
         self.size_layer_4       = 20#64
         self.reward_max         = 0
