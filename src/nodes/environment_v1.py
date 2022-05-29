@@ -44,6 +44,7 @@ class Behaviour(object):
         self._distancegoal       = 0.3
         self.initial_time        = time.time()
         self._maximo_reward      = 300#70
+        self._maximo_reward_angle      =30#70
         self.turn                = np.ones(40)*2
         self.cont_step           = 0
         self.Exp_rq              = 0
@@ -82,12 +83,13 @@ class Behaviour(object):
         heading             = state[-4]
         current_distance    = state[-3]
         wall_dist           = state[-2]
+        goal_heading_initial= np.degrees(state[-1])
         # Save the last steps in an array
         self.turn[0:-1]     = self.turn[1:]
         self.turn[-1]       = action
 
         last_distance = self.goal_distance
-
+        print("last_heading: ",goal_heading_initial)
         # If the robot is close to the wall,
         # it loses points because that action can lead to a collision.
         # If the robot is close to the wall, it loses points because that
@@ -99,20 +101,23 @@ class Behaviour(object):
 
 
         # Reward angle
-        if action ==2 :
-            self.reward_current_angle = 0.0
-        elif action ==5 :
+        # if action ==2 :
+            # self.reward_current_angle = 0.0
+        if action ==5 :
+        # elif action ==5 :
             self.reward_current_angle = 0.0
         else:
             # if current_distance <= 2*self._distancegoal:
-                self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*1
-            # else:
+                # self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*1
+                self.reward_current_angle = ((np.exp(-abs(np.degrees(self.last_heading))) - np.exp(-abs(np.degrees(heading))))/(np.exp(-abs(goal_heading_initial-6))-1))*self._maximo_reward_angle
+        # else:)
             #     self.reward_current_angle = 0.0
+        # print(np.degrees(heading),np.degrees(self.last_heading),goal_heading_initial)
 
         # if (0<current_distance < 2*self._distancegoal):
         #      self.last_heading = math.pi
         # else:
-        #     self.last_heading = heading
+        self.last_heading = heading
 
         #Reward goal and best time
         if (0<current_distance < self._distancegoal) and (-pi/2< heading <pi/2):
@@ -137,14 +142,16 @@ class Behaviour(object):
         if action ==5 :
             distance_rate = 0
         else:
-            # if abs(current_distance-self.goal_distance)>0.8*0.15:
+            # if abs(current_distance-self.goal_distance)>0.8*0.15: # avoid get negative reward for reset
             #     distance_rate =0
             #     self.reward_current_angle =0
+            # elif current_distance <self._distancegoal:
+            #     distance_rate =0
             # else:
-                distance_rate = ((np.exp(-last_distance) - np.exp(-current_distance))/(np.exp(-self._goal_distance_initial)-1))*self._maximo_reward
+                distance_rate = ((np.exp(-last_distance) - np.exp(-current_distance))/(np.exp(-(self._goal_distance_initial -self._distancegoal))-1))*self._maximo_reward
                 # distance_rate = (last_distance-current_distance)*self._maximo_reward
         self.goal_distance = current_distance
-        print("reward_distance: ", last_distance, current_distance, distance_rate, "angle: ", self.last_heading, heading, self.reward_current_angle, "wall_reward: ", wall_reward)
+        # print("reward_distance: ", last_distance, current_distance, distance_rate, "angle: ", self.last_heading, heading, self.reward_current_angle, "wall_reward: ", wall_reward)
         reward = distance_rate  + self.reward_current_angle +wall_reward
 
         #Reward collision
@@ -157,7 +164,7 @@ class Behaviour(object):
             rospy.loginfo("Goal!!")
             reward = 1000 +reward_bt
             self.pub_cmd_vel.publish(Twist())
-            print("regoal: ", reward, reward_bt)
+            # print("regoal: ", reward, reward_bt)
         return reward
 
     def reset_gazebo(self):
