@@ -70,7 +70,7 @@ class ReinforcementNetwork(object):
         self.kernel_initializador = 'lecun_uniform'
         self.q_model              = self.q_network()
         self.target_model         = self.target_network()
-        self.tf_rewards = 0
+        self.tf_rewards           = 0
         # self.update_target_network()
 
         if self.load_model:
