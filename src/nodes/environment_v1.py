@@ -89,7 +89,7 @@ class Behaviour(object):
         self.turn[-1]       = action
 
         last_distance = self.goal_distance
-        print("last_heading: ",goal_heading_initial)
+        # print("last_heading: ",goal_heading_initial)
         # If the robot is close to the wall,
         # it loses points because that action can lead to a collision.
         # If the robot is close to the wall, it loses points because that
@@ -112,8 +112,7 @@ class Behaviour(object):
                 self.reward_current_angle = ((np.exp(-abs(np.degrees(self.last_heading))) - np.exp(-abs(np.degrees(heading))))/(np.exp(-abs(goal_heading_initial-6))-1))*self._maximo_reward_angle
         # else:)
             #     self.reward_current_angle = 0.0
-        # print(np.degrees(heading),np.degrees(self.last_heading),goal_heading_initial)
-
+        print(np.degrees(heading),np.degrees(self.last_heading),goal_heading_initial)
         # if (0<current_distance < 2*self._distancegoal):
         #      self.last_heading = math.pi
         # else:
@@ -135,6 +134,7 @@ class Behaviour(object):
                 #Reward best_time
             reward_bt = 100*self.best_time1
                 #Reward goal
+            print("win",self.best_time,self.best_time1,self.initial_steps,reward_bt,t_steps)
             self.get_goalbox = True
             self._cont_step = self.cont_step
             self.cont_step = 0
@@ -142,17 +142,19 @@ class Behaviour(object):
         if action ==5 :
             distance_rate = 0
         else:
-            # if abs(current_distance-self.goal_distance)>0.8*0.15: # avoid get negative reward for reset
-            #     distance_rate =0
-            #     self.reward_current_angle =0
-            # elif current_distance <self._distancegoal:
-            #     distance_rate =0
-            # else:
+            if abs(current_distance-self.goal_distance)>0.8*0.15: # avoid get negative reward for reset
+                distance_rate =0
+                self.reward_current_angle =0
+            elif current_distance <self._distancegoal:
+                distance_rate =0
+            else:
                 distance_rate = ((np.exp(-last_distance) - np.exp(-current_distance))/(np.exp(-(self._goal_distance_initial -self._distancegoal))-1))*self._maximo_reward
                 # distance_rate = (last_distance-current_distance)*self._maximo_reward
+        print("reward_distance: ",self._goal_distance_initial, last_distance, current_distance, distance_rate, "angle: ", np.degrees(goal_heading_initial), np.degrees(self.last_heading), np.degrees(heading), self.reward_current_angle, "wall_reward: ", wall_reward,"action :",action)
         self.goal_distance = current_distance
-        # print("reward_distance: ", last_distance, current_distance, distance_rate, "angle: ", self.last_heading, heading, self.reward_current_angle, "wall_reward: ", wall_reward)
+
         reward = distance_rate  + self.reward_current_angle +wall_reward
+        # print(self.reward_current_angle,distance_rate,reward)
 
         #Reward collision
         if done:
