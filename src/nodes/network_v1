@@ -63,14 +63,14 @@ class ReinforcementNetwork(object):
         self.memory_GT          = deque(maxlen=100000)
         self.memory_EPS         = deque(maxlen=100000)
         self.load_model         = False
-        self.load_episode       = 0
+        self.load_episode       = 0#320 ev2 665
         self.loss               = 'mse'
         self.activation_output  = 'linear'
         self.activation_layer   = 'relu'
         self.kernel_initializador = 'lecun_uniform'
         self.q_model              = self.q_network()
         self.target_model         = self.target_network()
-        self.tf_rewards = 0
+        self.tf_rewards           = 0
         # self.update_target_network()
 
         if self.load_model:
@@ -489,13 +489,18 @@ if __name__ == '__main__':
                     # Calculate the distance to the target from the agent's last position
                     env.get_goalbox = False
                     env.goal_x, env.goal_y = env.target_position.getPosition(True, delete=True)
+                    robot.last_heading=list()
+                    # print(robot.last_heading)
                     env.get_Distance_goal(robot.robot_position_x,robot.robot_position_y)
+                    # print("initial: ",robot.heading)
 
                 else:
                     # Returns to the agent's origin position and calculates the distance to the target
                     env.get_goalbox = False
                     robot.reset()
                     env.reset_gazebo()
+                    robot.last_heading=list()
+
                     env.goal_x, env.goal_y = env.target_position.getPosition(True, delete=True)
                     env.get_Distance_goal(robot.robot_position_x,robot.robot_position_y)
                 # robot.stand=True
@@ -546,7 +551,12 @@ if __name__ == '__main__':
                     else:
                         agent.Pbest = agent.Pbest
                     agent.get_Pa()
+                    robot.last_heading=list()
+
+                    # print(robot.last_heading)
                     env.reset(robot.robot_position_x,robot.robot_position_y)
+                    # print("initial: ",robot.heading)
+
                     if cont > 20:
                         cont=0
                         break

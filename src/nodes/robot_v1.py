@@ -37,6 +37,8 @@ class Robot(object):
         self.robot_position_x           = 0
         # Technical characteristics
         self.action                     = None
+        self.last_heading=list()
+
         self.heading                    = 0
         self.min_range                  = 0.18
         self._distancegoal              = 0.3
@@ -70,6 +72,7 @@ class Robot(object):
         self.cn=0
         # self.stand=True
         self.stand=False
+        print(type(self.last_heading))
     @property
     def angle_action(self):
         return np.array([((self.number_action-4-action)* self.max_angular_vel*0.5)*self.diff_time for action in range(self.number_action-1)])
@@ -322,10 +325,19 @@ class Robot(object):
         self.theta= yaw
         self.environment.goal_angle = math.atan2(self.environment.goal_y - self.robot_position_y, self.environment.goal_x - self.robot_position_x)
         self.heading = self.environment.goal_angle - yaw
+
         if self.heading > pi:
             self.heading -= 2 * pi
         elif self.heading < -pi:
             self.heading += 2 * pi
+        # print(self.heading)
+        self.last_heading.append(self.heading)
+        # print("start: ",self.heading)
+    # def initial_goal(self):
+    #     goal_heading_initial =self.heading
+    #     print(goal_heading_initial)
+
+    # return goal_heading_initial
 
     @property
     def state(self):
@@ -353,8 +365,8 @@ class Robot(object):
         wall_dist = min(self.scan_data)
         obstacle_angle = np.argmin(self.scan_data)
         # print("i am in state",self.__crash_counter,self.__process,self.__crashed)
-
-        return scan_data + [heading, current_distance,wall_dist,obstacle_angle], done
+        goal_heading_initial=self.last_heading[0]
+        return scan_data + [heading, current_distance,wall_dist,goal_heading_initial], done
 
     def next_values(self,action):
         '''
