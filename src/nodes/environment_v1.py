@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+#################################################################################
+#Copyright 2022 Elizabeth
+#
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#Unless required by applicable law or agreed to in writing, software
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#distributed under the License is distributed on an "AS IS" BASIS,
+#See the License for the specific language governing permissions and
+#limitations under the License.
+#################################################################################
 
 import rospy
 import numpy as np
@@ -19,40 +34,40 @@ from target_v1 import Target
 
 class Behaviour(object):
     def __init__(self):
-        self.pub_cmd_vel         = rospy.Publisher('cmd_vel', Twist, queue_size=5)
-        self.reset_proxy         = rospy.ServiceProxy('gazebo/reset_simulation', Empty)
-        self.unpause_proxy       = rospy.ServiceProxy('gazebo/unpause_physics', Empty)
-        self.pause_proxy         = rospy.ServiceProxy('gazebo/pause_physics', Empty)
-        self.target_position     = Target()
-        self.dirPath             = os.path.dirname(os.path.realpath(__file__))
-        self.dirPath             = self.dirPath.replace('enviromentv1_/nodes', 'enviromentv1_/save_models/save_model_final')
-        self.goal_x              = 0
-        self.goal_y              = 0
-        self.initial_steps       = 0
-        self.initGoal            = True
-        self.action              = int
-        self.last_heading        = 0
-        self.heading             = 0
-        self.min_range           = 0.18
-        self.goal_distance       = 0
-        self.current_distance    = 0
-        self.best_time           = 0
+        self.pub_cmd_vel           = rospy.Publisher('cmd_vel', Twist, queue_size=5)
+        self.reset_proxy           = rospy.ServiceProxy('gazebo/reset_simulation', Empty)
+        self.unpause_proxy         = rospy.ServiceProxy('gazebo/unpause_physics', Empty)
+        self.pause_proxy           = rospy.ServiceProxy('gazebo/pause_physics', Empty)
+        self.target_position       = Target()
+        self.dirPath               = os.path.dirname(os.path.realpath(__file__))
+        self.dirPath               = self.dirPath.replace('enviromentv1_/nodes', 'enviromentv1_/save_models/save_model_final')
+        self.goal_x                = 0
+        self.goal_y                = 0
+        self.initial_steps         = 0
+        self.initGoal              = True
+        self.action                = int
+        self.last_heading          = 0
+        self.heading               = 0
+        self.min_range             = 0.18
+        self.goal_distance         = 0
+        self.current_distance      = 0
+        self.best_time             = 0
         # Crash fine tuning
-        self._reverse            = -1
-        self.__crashed           = False
-        self.__crash_counter     = 0
-        self._distancegoal       = 0.3
-        self.initial_time        = time.time()
-        self._maximo_reward      = 300#70
-        self._maximo_reward_angle      =30#70
-        self.turn                = np.ones(40)*2
-        self.cont_step           = 0
-        self.Exp_rq              = 0
-        self.get_goalbox         = False
+        self._reverse              = -1
+        self.__crashed             = False
+        self.__crash_counter       = 0
+        self._distancegoal         = 0.3
+        self.initial_time          = time.time()
+        self._maximo_reward        = 300
+        self._maximo_reward_angle  =30
+        self.turn                  = np.ones(40)*2
+        self.cont_step             = 0
+        self.Exp_rq                = 0
+        self.get_goalbox           = False
 
     def fix_angle(self,angle):
         """
-          fix an angle to be between 180 and -180 degree
+        fix an angle to be between 180 and -180 degree
         """
         if angle > pi:
             angle -= 2 * pi
@@ -67,7 +82,6 @@ class Behaviour(object):
         self.goal_distance= (math.hypot(self.goal_x - x, self.goal_y - y))
         self._goal_distance_initial=self.goal_distance
         return self.goal_distance
-
 
     def get_current_Distance(self,x,y):
         '''
@@ -89,7 +103,6 @@ class Behaviour(object):
         self.turn[-1]       = action
 
         last_distance = self.goal_distance
-        # print("last_heading: ",goal_heading_initial)
         # If the robot is close to the wall,
         # it loses points because that action can lead to a collision.
         # If the robot is close to the wall, it loses points because that
@@ -99,22 +112,11 @@ class Behaviour(object):
         else:
             wall_reward = 0
 
-
         # Reward angle
-        # if action ==2 :
-        #     self.reward_current_angle = 0.0
         if action ==5 :
             self.reward_current_angle = 0.0
         else:
-            # if current_distance <= 2*self._distancegoal:
-                # self.reward_current_angle = (np.cos(-abs(heading)+abs(self.last_heading)))*np.sign(-abs(heading)+abs(self.last_heading))*1
                 self.reward_current_angle = ((np.exp(-abs(np.degrees(self.last_heading))) - np.exp(-abs(np.degrees(heading))))/(np.exp(-abs(goal_heading_initial-6))-1))*self._maximo_reward_angle
-        # else:)
-            #     self.reward_current_angle = 0.0
-        print(np.degrees(heading),np.degrees(self.last_heading),goal_heading_initial)
-        # if (0<current_distance < 2*self._distancegoal):
-        #      self.last_heading = math.pi
-        # else:
         self.last_heading = heading
 
         #Reward goal and best time
@@ -133,11 +135,9 @@ class Behaviour(object):
                 #Reward best_time
             reward_bt = 100*self.best_time1
                 #Reward goal
-            print("win",self.best_time,self.best_time1,self.initial_steps,reward_bt,t_steps)
             self.get_goalbox = True
             self._cont_step = self.cont_step
             self.cont_step = 0
-            print("goal",self.initial_steps,t_steps,self.best_time,reward_bt)
 
         if action ==5 :
             distance_rate = 0
@@ -149,19 +149,9 @@ class Behaviour(object):
                 distance_rate =0
             else:
                 distance_rate = ((np.exp(-last_distance) - np.exp(-current_distance))/(np.exp(-(self._goal_distance_initial -self._distancegoal))-1))*self._maximo_reward
-                # distance_rate = (last_distance-current_distance)*self._maximo_reward
-<<<<<<< HEAD
-        print("reward_distance: ",self._goal_distance_initial, last_distance, current_distance, distance_rate, "angle: ", heading, self.reward_current_angle, "wall_reward: ", wall_reward)
         self.goal_distance = current_distance
-        # print("reward_distance: ", last_distance, current_distance, distance_rate, "angle: ", self.last_heading, heading, self.reward_current_angle, "wall_reward: ", wall_reward)
-        # print("angle: ", self.last_heading, heading, np.degrees(heading),self.reward_current_angle)
-=======
-        print("reward_distance: ",self._goal_distance_initial, last_distance, current_distance, distance_rate, "angle: ", np.degrees(goal_heading_initial), np.degrees(self.last_heading), np.degrees(heading), self.reward_current_angle, "wall_reward: ", wall_reward,"action :",action)
-        self.goal_distance = current_distance
->>>>>>> 2c945caeae0c71c2854785081f1e324ffd769773
 
         reward = distance_rate  + self.reward_current_angle +wall_reward
-        # print(self.reward_current_angle,distance_rate,reward)
 
         #Reward collision
         if done:
@@ -173,7 +163,6 @@ class Behaviour(object):
             rospy.loginfo("Goal!!")
             reward = 1000 +reward_bt
             self.pub_cmd_vel.publish(Twist())
-            # print("regoal: ", reward, reward_bt)
         return reward
 
     def reset_gazebo(self):
@@ -186,5 +175,5 @@ class Behaviour(object):
     def reset(self,x,y):
         if self.initGoal:
             self.goal_x, self.goal_y = self.target_position.getPosition()
-            self.initGoal = False
-        self.goal_distance = self.get_Distance_goal(x,y)
+            self.initGoal            = False
+        self.goal_distance           = self.get_Distance_goal(x,y)

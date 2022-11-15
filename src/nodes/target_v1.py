@@ -1,5 +1,20 @@
 #!/usr/bin/env python
 #################################################################################
+#Copyright 2022
+#
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#Unless required by applicable law or agreed to in writing, software
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#distributed under the License is distributed on an "AS IS" BASIS,
+#See the License for the specific language governing permissions and
+#limitations under the License.
+#################################################################################
+
 
 import rospy
 import numpy as np
@@ -11,26 +26,27 @@ from geometry_msgs.msg import Pose
 
 class Target(object):
     def __init__(self):
-        self.modelPath = os.path.dirname(os.path.realpath(__file__))
-        self.modelPath = self.modelPath.replace('ddrl_ge/src/nodes',
+        self.modelPath                  = os.path.dirname(os.path.realpath(__file__))
+        self.modelPath                  = self.modelPath.replace('ddrl_ge/src/nodes',
                                                 'turtlebot3_simulations/turtlebot3_gazebo/models/turtlebot3_square/goal_box/model.sdf')
-        self.f = open(self.modelPath, 'r')
-        self.model = self.f.read()
-        self.target_position = Pose()
+        self.f                          = open(self.modelPath, 'r')
+        self.model                      = self.f.read()
+        self.target_position            = Pose()
         # FOR BOX
-        # self.init_goal_x = -0.5
-        # self.init_goal_y = 0.5
+        self.init_goal_x                = -0.5
+        self.init_goal_y                = 0.5
+
         # FOR CORRIDOR
-        self.init_goal_x = 0.5
-        self.init_goal_y = 0.5
+        # self.init_goal_x              = 0.5
+        # self.init_goal_y              = 0.5
         self.target_position.position.x = self.init_goal_x
         self.target_position.position.y = self.init_goal_y
-        self.modelName = 'goal'
-        self.last_goal_x = self.init_goal_x
-        self.last_goal_y = self.init_goal_y
-        self.last_index = 0
-        self.check_model = False
-        self.index = 0
+        self.modelName                  = 'goal'
+        self.last_goal_x                = self.init_goal_x
+        self.last_goal_y                = self.init_goal_y
+        self.last_index                 = 0
+        self.check_model                = False
+        self.index                      = 0
 
 
     def respawnModel(self):
@@ -54,12 +70,12 @@ class Target(object):
         while position_check:
 
             #goal for box
-            # goal_x_list = [-1, 1.8, 0.6, 1.9,  0.7, 0.2, -1.3, -1, -1.9,  0.5,   2, 0.5, 0, -0.1, -2,  -0.5]
-            # goal_y_list = [-2,-1.8, 0,  -0.5, -1.9, 1.5, -0.9,  1,  1.1, -1.5, 1.5, 1.8, -1, 1.6, -0.8, 0.5]
+            goal_x_list = [-1, 1.8, 0.6, 1.9,  0.7, 0.2, -1.3, -1, -1.9,  0.5,   2, 0.5, 0, -0.1, -2,  -0.5]
+            goal_y_list = [-1.7,-1.8, 0,  -0.5, -1.9, 1.5, -0.9,  1,  1.1, -1.5, 1.5, 1.8, -1, 1.6, -0.8, 0.5]
 
             # goal for corridor
-            goal_x_list = [0.5,1,    2  ,3 , 4  ,7 , 9  ,  12,   4.5, 7.5,-1,-4, -1,-5,  -7.5,-9,-10,-11,9.5]
-            goal_y_list = [0.5,1,   0.5, 1,-0.8, 0.8,  -1.5,0,  -1.5,-1.5,-1,-0.5,1,-1.2,1,   -1, 1,  0, 1.5]
+            # goal_x_list = [0.5,1,    2  ,3 , 4  ,7 , 9  ,  12,   4.5, 7.5,-1,-4, -1,-5,  -7.5,-9,-10,-11,9.5]
+            # goal_y_list = [0.5,1,   0.5, 1,-0.8, 0.8,  -1.5,0,  -1.5,-1.5,-1,-0.5,1,-1.2,1,   -1, 1,  0, 1.5]
 
             self.index = np.random.randint(0, len(goal_y_list), 1)[0]
 

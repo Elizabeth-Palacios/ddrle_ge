@@ -1,33 +1,49 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+#################################################################################
+#Copyright 2022 Elizabeth
+#
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#Unless required by applicable law or agreed to in writing, software
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#distributed under the License is distributed on an "AS IS" BASIS,
+#See the License for the specific language governing permissions and
+#limitations under the License.
+#################################################################################
+
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
 
 class pathfinding(object):
-    def __init__(self,laser_angles,x_min=-13,x_max=13,y_min=-13,y_max=13,size_s=0.07,debug=False):
-    # def __init__(self,laser_angles,x_min=-4,x_max=4,y_min=-4,y_max=4,size_s=0.07,debug=False):
+    def __init__(self,laser_angles,x_min=-4,x_max=4,y_min=-4,y_max=4,size_s=0.07,debug=False):
         """
           Constructor
         """
         # Map stuff
-        self.x_min =    x_min
-        self.x_max =    x_max
-        self.y_min =    y_min
-        self.y_max =    y_max
-        self.size_s=    size_s
-        self.rotate=    lambda a: np.array([[np.cos(a),np.sin(a)],[-np.sin(a),np.cos(a)]])
-        self.laser_angles = laser_angles
+        self.x_min           =    x_min
+        self.x_max           =    x_max
+        self.y_min           =    y_min
+        self.y_max           =    y_max
+        self.size_s          =    size_s
+        self.rotate          =    lambda a: np.array([[np.cos(a),np.sin(a)],[-np.sin(a),np.cos(a)]])
+        self.laser_angles    = laser_angles
         self.max_laser_range = 3.5
         self.__init_map(x_min,x_max,y_min,y_max,size_s)
-        self.__debug = debug
+        self.__debug         = debug
         if debug:
             dummy = self.box
             dummy[0,0]=2
-            self.__debug_im = plt.imshow(dummy,extent=(self.x_min,self.x_max,self.y_max,self.y_min),vmin=0,vmax=2)
-            self.__scat_rob = plt.scatter(0,0,marker="*",color="r")
-            self.__scat_tar = plt.scatter(0,0,marker="s",color="w")
+            self.__debug_im   = plt.imshow(dummy,extent=(self.x_min,self.x_max,self.y_max,self.y_min),vmin=0,vmax=2)
+            self.__scat_rob   = plt.scatter(0,0,marker="*",color="r")
+            self.__scat_tar   = plt.scatter(0,0,marker="s",color="w")
             self.__scat_focus = plt.scatter(0,0,marker="d",color="g")
 
         pass
@@ -60,17 +76,17 @@ class pathfinding(object):
         vector         = (ta_pos-ro_pos)/np.linalg.norm(ta_pos-ro_pos)
         self.lis_laser = []
         for i,j in enumerate(l_d):
-            rotation_angle=hea-self.laser_angles[i]
-            matrix=self.rotate(rotation_angle)
-            rot_vector = np.matmul(matrix,vector)*j + ro_pos
-            mask_x=np.argmin(abs(self.x_coordinates-rot_vector[0]))
-            mask_y=np.argmin(abs(self.y_coordinates-rot_vector[1]))
-            s_piece_x= np.linspace(ro_pos[0],rot_vector[0],1e2)
-            s_piece_y= np.linspace(ro_pos[1],rot_vector[1],1e2)
-            mask2_x= np.argmin(abs(self.x_coordinates-s_piece_x[:,np.newaxis]),axis=1)
-            mask2_y= np.argmin(abs(self.y_coordinates-s_piece_y[:,np.newaxis]),axis=1)
-            mask_coor = np.array([mask2_x,mask2_y])
-            unique=np.unique(mask_coor,axis=1)
+            rotation_angle = hea-self.laser_angles[i]
+            matrix         = self.rotate(rotation_angle)
+            rot_vector     = np.matmul(matrix,vector)*j + ro_pos
+            mask_x         = np.argmin(abs(self.x_coordinates-rot_vector[0]))
+            mask_y         = np.argmin(abs(self.y_coordinates-rot_vector[1]))
+            s_piece_x      = np.linspace(ro_pos[0],rot_vector[0],1e2)
+            s_piece_y      = np.linspace(ro_pos[1],rot_vector[1],1e2)
+            mask2_x        = np.argmin(abs(self.x_coordinates-s_piece_x[:,np.newaxis]),axis=1)
+            mask2_y        = np.argmin(abs(self.y_coordinates-s_piece_y[:,np.newaxis]),axis=1)
+            mask_coor      = np.array([mask2_x,mask2_y])
+            unique         = np.unique(mask_coor,axis=1)
 
             self.box_free[unique[0,:],unique[1,:]]+=1  # FREE
             if j !=self.max_laser_range:
@@ -91,7 +107,7 @@ class pathfinding(object):
         target_position = np.array([np.argmin(abs(self.x_coordinates-target_position[0])),np.argmin(abs(self.y_coordinates-target_position[1]))])
 
         # Make the walls of the map bigger
-        tmp_map = np.zeros(self.box.shape)
+        tmp_map              = np.zeros(self.box.shape)
         tmp_map[self.box==2] = 2
         for i in range(1,3):
             # i = 1
@@ -109,8 +125,6 @@ class pathfinding(object):
         tmp_map[robot_position[0],robot_position[1]] = 0
         self.tmp_map=tmp_map
         path = np.array(self.__a_star(tmp_map.T,tuple(robot_position),tuple(target_position)))
-        # if path == None:
-        #     return
         # Translate to real coordinates again
         try:
             self.path_cords = np.array([self.x_coordinates[path[:,0]],self.y_coordinates[path[:,1]]]).T
@@ -126,17 +140,10 @@ class pathfinding(object):
             robot_position  = np.array(robot_position)
             target_position = np.array(target_position)
 
-            # Calulate distances and only take points closer than the robot into account
-            # dists   = np.sqrt((self.path_cords[:,1]-target_position[0])**2.+(self.path_cords[:,0]-target_position[1])**2.)
-            # c = np.linalg.norm(target_position-robot_position)
-            # mask = dists<c
-
             # Calculate closest point to the robot
-            dists_rob   = np.sqrt((self.path_cords[:,1]-robot_position[0])**2.+(self.path_cords[:,0]-robot_position[1])**2.)
-            idx_min = np.argmin(dists_rob)
-            # print(idx_min,len(self.path_cords))
+            dists_rob       = np.sqrt((self.path_cords[:,1]-robot_position[0])**2.+(self.path_cords[:,0]-robot_position[1])**2.)
+            idx_min         = np.argmin(dists_rob)
             self.path_cords = self.path_cords[(np.arange(len(self.path_cords))<idx_min)]
-            # self.path_cords = self.path_cords[mask]
 
             # Sort the points
             foc_point_idx   = np.argsort((self.path_cords[:,1]-robot_position[0])**2.+(self.path_cords[:,0]-robot_position[1])**2.)
@@ -146,12 +153,12 @@ class pathfinding(object):
             # self.__scat_focus.set_offsets(np.array([foc_point[1],foc_point[0]]))
 
             # Calculate everything of the triangle
-            a = np.linalg.norm(foc_point-robot_position)
-            b = np.linalg.norm(foc_point-target_position)
-            c = np.linalg.norm(target_position-robot_position)
-            angle1 = np.arccos((b**2+c**2-a**2)/(2.0*b*c))
-            angle2 = np.arccos((a**2+b**2-c**2)/(2.0*a*c))
-            angle3 = np.pi-angle1-angle2
+            a               = np.linalg.norm(foc_point-robot_position)
+            b               = np.linalg.norm(foc_point-target_position)
+            c               = np.linalg.norm(target_position-robot_position)
+            angle1          = np.arccos((b**2+c**2-a**2)/(2.0*b*c))
+            angle2          = np.arccos((a**2+b**2-c**2)/(2.0*a*c))
+            angle3          = np.pi-angle1-angle2
 
             # Angle 3 is the angle we need
             angle=angle3
